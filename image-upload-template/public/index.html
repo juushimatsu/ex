@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Загрузка изображений — Шаблон</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f1f5f9; height: 100vh; display: flex; flex-direction: column; }
+
+    header { background: #1e3a5f; color: white; padding: 14px 20px; }
+    header h1 { font-size: 17px; }
+
+    /* ============================================================
+       КЛАССЫ ДЛЯ ВСТРАИВАНИЯ В СВОЙ ПРОЕКТ
+       Скопируй .chat-image и .btn-attach в свой CSS
+       ============================================================ */
+
+    /* Картинка внутри сообщения чата */
+    .chat-image {
+      max-width: 260px;    /* Макс. ширина превью в чате */
+      max-height: 200px;   /* Макс. высота превью */
+      border-radius: 6px;
+      cursor: pointer;     /* Курсор — рука, намекает что можно нажать */
+      display: block;
+      margin-top: 4px;
+    }
+
+    /* Кнопка прикрепления файла (скрепка) */
+    .btn-attach {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      cursor: pointer;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .btn-attach:hover { background: #e2e8f0; }
+
+    /* ============================================================
+       ОСТАЛЬНОЙ CSS (демо-оформление)
+       ============================================================ */
+
+    .chat-container { flex: 1; display: flex; flex-direction: column; max-width: 700px; margin: 20px auto; width: 100%; padding: 0 16px; }
+
+    .messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 14px 0; }
+
+    .msg {
+      max-width: 75%;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+      word-break: break-word;
+      align-self: flex-start;
+      background: white;
+      box-shadow: 0 1px 2px rgba(0,0,0,.06);
+    }
+    .msg .ts { font-size: 11px; color: #94a3b8; margin-top: 4px; text-align: right; }
+
+    .input-bar {
+      display: flex;
+      gap: 8px;
+      padding: 12px 0;
+      border-top: 1px solid #e2e8f0;
+      align-items: center;
+    }
+    .input-bar textarea {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      resize: none;
+      font-size: 14px;
+      font-family: inherit;
+      height: 40px;
+      line-height: 1.4;
+    }
+    .input-bar button.send {
+      padding: 8px 16px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .input-bar button.send:hover { background: #1d4ed8; }
+
+    /* Превью выбранного файла перед отправкой */
+    .preview-bar {
+      display: none;
+      padding: 8px 0;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #475569;
+    }
+    .preview-bar.show { display: flex; }
+    .preview-bar img { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; }
+    .preview-bar .preview-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .preview-bar .preview-remove { cursor: pointer; font-size: 18px; color: #94a3b8; }
+    .preview-bar .preview-remove:hover { color: #ef4444; }
+
+    .empty { text-align: center; color: #94a3b8; padding: 40px 0; font-size: 14px; }
+
+    /* Оверлей для полноэкранного просмотра картинки */
+    #overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.7);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    #overlay.show { display: flex; }
+    #overlay img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Прикрепление изображений — Демо</h1>
+  </header>
+
+  <div class="chat-container">
+    <div class="messages" id="messages">
+      <div class="empty" id="empty-msg">Нет сообщений. Отправьте первое!</div>
+    </div>
+
+    <!--
+      ============================================================
+      КЛЮЧЕВОЙ ЭЛЕМЕНТ: Превью файла перед отправкой
+      Показывает пользователю, что он выбрал файл, до отправки.
+      Скопируй .preview-bar и JS-логику showPreview/hidePreview.
+      ============================================================
+    -->
+    <div class="preview-bar" id="preview-bar">
+      <img id="preview-thumb" src="" alt="">
+      <span class="preview-name" id="preview-name"></span>
+      <span class="preview-remove" onclick="clearFile()">✕</span>
+    </div>
+
+    <!--
+      ============================================================
+      КЛЮЧЕВОЙ ЭЛЕМЕНТ: Панель ввода с кнопкой прикрепления
+
+      Структура:
+        1. <label class="btn-attach"> — кнопка-скрепка (визуальная)
+           Внутри скрытый <input type="file"> — реальный выбор файла
+        2. <textarea> — текст сообщения
+        3. <button class="send"> — отправка
+
+      Как встроить в свой чат:
+        Добавь <label class="btn-attach"> ПЕРЕД textarea в своём .chat-input
+        Убедись что у <input type="file"> есть:
+          - accept="image/jpeg,image/png,image/gif,image/webp" — фильтр по типам
+          - id="file-input" — чтобы JS мог к нему обратиться
+          - hidden — скрывает стандартный элемент выбора файла
+        <label> с for/id связывает клик по скрепке с открытием файлового диалога
+      ============================================================
+    -->
+    <div class="input-bar">
+      <label class="btn-attach" title="Прикрепить картинку">
+        📎
+        <input type="file"
+               accept="image/jpeg,image/png,image/gif,image/webp"
+               id="file-input"
+               onchange="showPreview()"
+               hidden>
+      </label>
+      <textarea id="text-input" placeholder="Сообщение..." onkeydown="handleKey(event)"></textarea>
+      <button class="send" onclick="sendMessage()">→</button>
+    </div>
+  </div>
+
+  <!-- Оверлей для полноэкранного просмотра -->
+  <div id="overlay" onclick="this.classList.remove('show')">
+    <img id="overlay-img" src="" alt="">
+  </div>
+
+  <script>
+    // ============================================================
+    //  ПРЕВЬЮ ВЫБРАННОГО ФАЙЛА
+    //  Когда пользователь выбрал файл — показываем миниатюру
+    //  и имя файла. До отправки файл НЕ загружен на сервер.
+    // ============================================================
+
+    function showPreview() {
+      const input = document.getElementById('file-input');
+      if (!input.files || !input.files[0]) return;
+
+      const file = input.files[0];
+
+      // Проверка размера на клиенте (дублирует серверную проверку)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Файл слишком большой (макс. 10 МБ)');
+        input.value = '';
+        return;
+      }
+
+      // Показываем превью
+      const bar = document.getElementById('preview-bar');
+      const thumb = document.getElementById('preview-thumb');
+      const name = document.getElementById('preview-name');
+
+      thumb.src = URL.createObjectURL(file);
+      name.textContent = file.name;
+      bar.classList.add('show');
+    }
+
+    function clearFile() {
+      const input = document.getElementById('file-input');
+      input.value = '';
+      document.getElementById('preview-bar').classList.remove('show');
+    }
+
+    // ============================================================
+    //  ОТПРАВКА СООБЩЕНИЯ (текст + опционально картинка)
+    //
+    //  КЛЮЧЕВАЯ ЧАСТЬ: отправка файла через FormData
+    //
+    //  FormData — это объект, который формирует multipart/form-data
+    //  (тот же формат, что и при <form enctype="multipart/form-data">)
+    //
+    //  Как встроить в свой чат:
+    //    1. При отправке проверь, есть ли файл в <input type="file">
+    //    2. Если есть — создай FormData и добавь файл через .append('image', file)
+    //    3. Отправь fetch с body: formData (БЕЗ Content-Type — браузер сам поставит)
+    //    4. Если файла нет — отправь обычный JSON
+    // ============================================================
+
+    async function sendMessage() {
+      const textInput = document.getElementById('text-input');
+      const fileInput = document.getElementById('file-input');
+      const text = textInput.value.trim();
+      const file = fileInput.files && fileInput.files[0];
+
+      if (!text && !file) return;
+
+      // --- Если есть файл — отправляем FormData ---
+      if (file) {
+        const formData = new FormData();
+        // .append(имя_поля, значение)
+        // Имя поля 'image' должно совпадать с upload.single('image') на сервере!
+        formData.append('image', file);
+        // Текстовые поля тоже можно добавить в FormData
+        formData.append('text', text);
+
+        // ⚠ НЕ ставь Content-Type! Браузер автоматически поставит
+        // multipart/form-data с правильным boundary
+        const res = await fetch('/api/messages', {
+          method: 'POST',
+          body: formData,  // ← FormData, не JSON
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.error || 'Ошибка');
+          return;
+        }
+      } else {
+        // --- Если файла нет — отправляем обычный JSON ---
+        const res = await fetch('/api/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.error || 'Ошибка');
+          return;
+        }
+      }
+
+      // Очищаем поля ввода
+      textInput.value = '';
+      fileInput.value = '';
+      document.getElementById('preview-bar').classList.remove('show');
+
+      // Обновляем список сообщений
+      loadMessages();
+    }
+
+    // ============================================================
+    //  ПОЛУЧЕНИЕ И ОТРИСОВКА СООБЩЕНИЙ
+    // ============================================================
+
+    async function loadMessages() {
+      const res = await fetch('/api/messages');
+      const messages = await res.json();
+      renderMessages(messages);
+    }
+
+    function renderMessages(messages) {
+      const container = document.getElementById('messages');
+      const emptyEl = document.getElementById('empty-msg');
+
+      if (messages.length === 0) {
+        emptyEl.style.display = 'block';
+        container.innerHTML = '';
+        container.appendChild(emptyEl);
+        return;
+      }
+
+      emptyEl.style.display = 'none';
+
+      // ============================================================
+      //  КЛЮЧЕВАЯ ЧАСТЬ: Отрисовка сообщения с картинкой
+      //
+      //  Если у сообщения есть imageUrl — рисуем <img>
+      //  imageUrl приходит с сервера: "/uploads/abc123.jpg"
+      //  Этот URL подставляется в <img src="..."> и браузер
+      //  запрашивает картинку у Express (шаг 2 в server.js)
+      //
+      //  Как встроить в свой renderMsg():
+      //    Добавь проверку: если у сообщения есть imageUrl —
+      //    рендери <img class="chat-image" src="${m.imageUrl}">
+      //    Класс .chat-image задаёт размер и скругление (см. CSS)
+      // ============================================================
+
+      container.innerHTML = messages.map(m => {
+        // Формируем содержимое сообщения
+        let content = '';
+        if (m.text) content += escHtml(m.text);
+        if (m.imageUrl) {
+          // Картинка кликабельна — открывается в полном размере
+          content += `<img class="chat-image" src="${m.imageUrl}" onclick="openImage('${m.imageUrl}')" alt="Изображение">`;
+        }
+
+        return `
+          <div class="msg">
+            ${content}
+            <div class="ts">${fmtTime(m.timestamp)}</div>
+          </div>
+        `;
+      }).join('');
+
+      // Прокрутка вниз
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // ============================================================
+    //  ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+    // ============================================================
+
+    function escHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function fmtTime(ts) {
+      return new Date(ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function handleKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    }
+
+    function openImage(src) {
+      const overlay = document.getElementById('overlay');
+      document.getElementById('overlay-img').src = src;
+      overlay.classList.add('show');
+    }
+
+    // Загружаем сообщения при загрузке страницы
+    loadMessages();
+  </script>
+</body>
+</html>

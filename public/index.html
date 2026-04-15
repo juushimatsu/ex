@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Техподдержка</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f1f5f9; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    header { background: #1e3a5f; color: white; padding: 12px 20px; flex-shrink: 0; }
+    header h1 { font-size: 17px; font-weight: 600; }
+
+    #session-bar { background: #e2e8f0; padding: 7px 20px; font-size: 13px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    #session-bar span { color: #475569; }
+    #session-bar button { font-size: 12px; padding: 3px 10px; background: white; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; }
+
+    .workspace { display: flex; flex: 1; overflow: hidden; }
+
+    .sidebar { width: 270px; background: white; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; flex-shrink: 0; }
+    .sidebar-head { padding: 11px 14px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; }
+    .sidebar-head h2 { font-size: 14px; font-weight: 600; }
+    .btn-new { padding: 4px 10px; font-size: 12px; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-new:hover { background: #1d4ed8; }
+
+    .ticket-list { flex: 1; overflow-y: auto; }
+    .ticket-item { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer; user-select: none; }
+    .ticket-item:hover { background: #f8fafc; }
+    .ticket-item.active { background: #eff6ff; border-left: 3px solid #2563eb; padding-left: 11px; }
+    .ticket-item .subj { font-size: 13px; font-weight: 500; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ticket-item .meta { font-size: 11px; color: #94a3b8; margin-top: 3px; display: flex; gap: 6px; align-items: center; }
+
+    .badge { display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 10px; font-weight: 500; }
+    .badge-open { background: #dbeafe; color: #1d4ed8; }
+    .badge-active { background: #dcfce7; color: #15803d; }
+    .badge-closed { background: #f1f5f9; color: #64748b; }
+
+    .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .chat-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 14px; }
+
+    .chat-head { padding: 10px 16px; border-bottom: 1px solid #e2e8f0; background: white; flex-shrink: 0; }
+    .chat-head h3 { font-size: 14px; font-weight: 600; }
+    .chat-head .sub { font-size: 12px; color: #64748b; margin-top: 3px; }
+
+    .messages { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+
+    .msg { max-width: 68%; padding: 8px 12px; border-radius: 8px; font-size: 13px; line-height: 1.5; word-break: break-word; }
+    .msg.client { background: #e0f2fe; align-self: flex-start; }
+    .msg.agent { background: #2563eb; color: white; align-self: flex-end; }
+    .msg .from { font-size: 11px; font-weight: 600; margin-bottom: 2px; opacity: .75; }
+    .msg .ts { font-size: 11px; margin-top: 3px; opacity: .6; text-align: right; }
+
+    .chat-image { max-width: 260px; max-height: 200px; border-radius: 6px; cursor: pointer; display: block; margin-top: 4px; }
+
+    .chat-input { padding: 10px 14px; border-top: 1px solid #e2e8f0; background: white; display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
+    .chat-input textarea { flex: 1; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 6px; resize: none; font-size: 13px; font-family: inherit; height: 38px; line-height: 1.4; }
+    .chat-input button { padding: 7px 14px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .chat-input button:hover { background: #1d4ed8; }
+    .chat-closed-note { padding: 10px; text-align: center; color: #94a3b8; font-size: 13px; background: white; border-top: 1px solid #e2e8f0; flex-shrink: 0; }
+
+    .btn-attach { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 6px; background: #f1f5f9; border: 1px solid #cbd5e1; cursor: pointer; font-size: 16px; flex-shrink: 0; }
+    .btn-attach:hover { background: #e2e8f0; }
+
+    #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 100; align-items: center; justify-content: center; }
+    #overlay.show { display: flex; }
+    .modal { background: white; border-radius: 8px; padding: 24px; width: 380px; max-width: 90vw; }
+    .modal h2 { font-size: 17px; margin-bottom: 6px; }
+    .modal p { font-size: 13px; color: #64748b; margin-bottom: 16px; }
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 12px; font-weight: 500; margin-bottom: 4px; color: #374151; }
+    .field input { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 13px; font-family: inherit; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+    .btn { padding: 7px 14px; border-radius: 5px; font-size: 13px; cursor: pointer; border: none; }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-cancel { background: #f1f5f9; color: #374151; border: 1px solid #d1d5db; }
+    .btn-cancel:hover { background: #e2e8f0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Система технической поддержки — Клиент</h1>
+  </header>
+  <div id="session-bar">
+    <span id="session-label">Загрузка...</span>
+    <button onclick="showSessionModal()">Изменить сессию</button>
+  </div>
+  <div class="workspace">
+    <div class="sidebar">
+      <div class="sidebar-head">
+        <h2>Мои обращения</h2>
+        <button class="btn-new" onclick="showNewTicketModal()">+ Новое</button>
+      </div>
+      <div class="ticket-list" id="ticket-list"></div>
+    </div>
+    <div class="chat-area" id="chat-area">
+      <div class="chat-empty">Выберите обращение или создайте новое</div>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <div class="modal" id="modal-body"></div>
+  </div>
+
+  <script src="client.js"></script>
+</body>
+</html>

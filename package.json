@@ -1,0 +1,15 @@
+{
+  "name": "support-service",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "start:image": "node image-service.js",
+    "start:all": "node server.js & node image-service.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "multer": "^1.4.5-lts.1",
+    "ws": "^8.18.0"
+  }
+}
